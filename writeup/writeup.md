@@ -52,7 +52,7 @@ Image Thresholding functions are defined in sixth code cell and demonstrations o
 
 These thresholding functions were used during experimentation of image thresholding and the effect on processing the video output.  After some discussion with another Udacity student, I decided to implement a much more straight forward "color select" with binary output to highlight lane lines from the image/video.  This is demonstrated in the 11th code cell in the perspective transform section.
 
-In code cell 8, a color thresholded binary output is displayed
+Shown here is the thresholding applied without the binary output.  
 
 
 
@@ -67,46 +67,7 @@ In code cell 8, a color thresholded binary output is displayed
 ![png](output_10_2.png)
 
 
-
-```python
-def thresh_color(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
-    img = np.copy(img)
-    # Convert to HSV color space and separate the V channel
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
-    l_channel = hls[:,:,1]
-    s_channel = hls[:,:,2]
-    # Sobel x
-    sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
-    abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
-    scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
-    
-    # Threshold x gradient
-    sxbinary = np.zeros_like(scaled_sobel)
-    sxbinary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
-    
-    # Threshold color channel
-    s_binary = np.zeros_like(s_channel)
-    s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
-    # Stack each channel
-    # Note color_binary[:, :, 0] is all 0s, effectively an all black image. It might
-    # be beneficial to replace this channel with something else.
-    color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, s_binary))
-    return color_binary
-    
-result = thresh_color(test_img)
-
-# Plot the result
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
-f.tight_layout()
-
-ax1.imshow(test_img)
-ax1.set_title('Original Image', fontsize=40)
-
-ax2.imshow(result)
-ax2.set_title('Thresholded Binary', fontsize=40)
-
-plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-```
+The color binary thresholding is show here.  The code producing this output is in code cell 8.
 
 
 ![png](output_11_0.png)
@@ -114,67 +75,11 @@ plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
 
 #### 4. Perspective Transform
 
+The image "unwarp" or perspective transform is implemented in code cell 9 and 10.
+The function perspective_tf() is used to generate the M matrix, the M inverse matrix and returns the "warped" image, which is the "birds-eye-view" of the original image view.  The source points were manually obtained and the destination points were calculated from the length and width of the undistored image.
 
-```python
-def perspect_tf(img, src, dst):
-    # get dims h,w for warpPerspective()
-    h,w = img.shape[:2]
-    # get the transform matrix, M
-    M = cv2.getPerspectiveTransform(src, dst)
-    # get the inverse transform matrix, Minv
-    Minv = cv2.getPerspectiveTransform(dst, src)
-    # use cv2.warpPerspective() to warp image to a top-down view
-    warped = cv2.warpPerspective(img, M, (w,h), flags=cv2.INTER_LINEAR)
-    return warped, M, Minv
-
-```
-
-
-```python
-test_img = cv2.imread('./test_images/test2.jpg')
-test_img = cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB)
-test_img_undistort = undistort(test_img)
-#cv2.undistort(test_img, mtx, dist, None, mtx)
-# image dimenstions
-h,w = test_img_undistort.shape[:2]
-
-src = np.float32([(575,460),
-                  (700,460), 
-                  (270,670), 
-                  (1120,670)])
-dst = np.float32([(200,0),
-                  (w-400,0),
-                  (200,h),
-                  (w-400,h)])
-
-test_img_unwarp, M, Minv = perspect_tf(test_img_undistort, src, dst)
-
-# Visualize unwarp including the src area
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
-f.subplots_adjust(hspace = .2, wspace=.05)
-ax1.imshow(test_img_undistort)
-x = [src[0][0],src[2][0],src[3][0],src[1][0],src[0][0]]
-y = [src[0][1],src[2][1],src[3][1],src[1][1],src[0][1]]
-ax1.plot(x, y, color='green', alpha=0.4, linewidth=6, solid_capstyle='round', zorder=2)
-ax1.set_ylim([h,0])
-ax1.set_xlim([0,w])
-ax1.set_title('Undistorted Image', fontsize=30)
-ax2.imshow(test_img_unwarp)
-x2 = [dst[0][0],dst[2][0],dst[3][0],dst[1][0],dst[0][0]]
-y2 = [dst[0][1],dst[2][1],dst[3][1],dst[1][1],dst[0][1]]
-ax2.plot(x2, y2, color='green', alpha=0.4, linewidth=6, solid_capstyle='round', zorder=2)
-ax2.set_ylim([h,0])
-ax2.set_xlim([0,w])
-ax2.set_title('Perspective Transform', fontsize=30)
-
-```
-
-
-
-
-    <matplotlib.text.Text at 0x11d795748>
-
-
+Shown here is the original view image (undistored) and the perspective transformed image.
+The src and dst points are also plotted (in green) for the original and transformed images respectively.
 
 
 ![png](output_14_1.png)
@@ -182,71 +87,21 @@ ax2.set_title('Perspective Transform', fontsize=30)
 
 Binary Thresholding on Unwarped Image
 
+In code cell 11, the color_select() function (mentioned earlier) is implemented for thresholding and producing a binary output of the lanes from the perspective transform.  The color select relies on sensitivites for the selection of either white or yellow lane lines.  This color select function seemed to offer higher performance in processing the video than did the other thresholding functions.  This performance increase was by observation only, no statiscal data has been taken to prove this at this time.  
 
-```python
-#def color_select(img, src, dst):
-def color_select(img):
-    HSV = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    #img, M, Minv = unwarp(img, src, dst)
-    # For yellow
-    yellow = cv2.inRange(HSV, (10, 100, 100), (50, 255, 255))
-    
-    # For white
-    sensitivity_1 = 68
-    white_1 = cv2.inRange(HSV, (0,0,255-sensitivity_1), (255,20,255))
-    sensitivity_2 = 60
-    HLS = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    white_2 = cv2.inRange(HLS, (0,255-sensitivity_2,0), (255,255,sensitivity_2))
-    white_3 = cv2.inRange(HLS, (200,200,200), (255,255,255))
-
-    combined = yellow | white_1 | white_2 | white_3
-    
-    return combined
-
-
-#combined, Minv = color_select(test_img_unwarp, src, dst)
-combined = color_select(test_img_unwarp)
-plt.figure(figsize=(10,40))
-
-plt.subplot(121)
-plt.imshow(test_img_unwarp, cmap='gray')
-plt.title("Unwarped Image")
-
-plt.subplot(122)
-plt.imshow(combined, cmap='gray')
-plt.title("Color Selected")
-
-#bit_layer = your_bit_layer | yellow | white | white_2 | white_3
-```
-
-
-
-
-    <matplotlib.text.Text at 0x125c07e10>
-
-
-
+Shown here is the perspective transformed "Unwarped Image" and the color-select binary output "Color Selected" plotted in grayscale.
 
 ![png](output_16_1.png)
 
 
+In code cell 12, lane line selection criteria a histogram of the color selected points is shown here.
 
-```python
-binary_warped = combined
+With this histogram the pixel values are summed along each column in the image. In the thresholded binary image, pixels are either 0 or 1, so the two most prominent peaks in this histogram will be good indicators of the x-position of the base of the lane lines. This can be used as a starting point to search for the lines. From that point, a sliding window can be placed around the line centers, to find and follow the lines up to the top of the frame.
 
-histogram = np.sum(binary_warped[binary_warped.shape[0]/2:,:], axis=0)
+The implementaion of the sliding windows technique is taken from the lesson material.
 
-plt.plot(histogram)
-
-```
-
-
-
-
-    [<matplotlib.lines.Line2D at 0x1269f8978>]
-
-
-
+Shown here is the output of the lane_finder() function.  
+The function returns a set of values (out_img, left_fitx, right_fitx, ploty, left_fit, right_fit) that are used to produce the following output.
 
 ![png](output_17_1.png)
 
@@ -254,105 +109,7 @@ plt.plot(histogram)
 #### 5. Detect Lane Lines
 
 
-```python
-# Sliding Windows
-
-def lane_finder(img, binary_warped, Minv):
-    # Take a histogram of the bottom half of the image
-    histogram = np.sum(binary_warped[binary_warped.shape[0]/2:,:], axis=0)
-    # Create an output image to draw on and  visualize the result
-    out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
-    # Find the peak of the left and right halves of the histogram
-    # These will be the starting point for the left and right lines
-    midpoint = np.int(histogram.shape[0]/2)
-    leftx_base = np.argmax(histogram[:midpoint])
-    rightx_base = np.argmax(histogram[midpoint:]) + midpoint
-
-    # Choose the number of sliding windows
-    nwindows = 10
-    # Set height of windows
-    window_height = np.int(binary_warped.shape[0]/nwindows)
-    # Identify the x and y positions of all nonzero pixels in the image
-    nonzero = binary_warped.nonzero()
-    nonzeroy = np.array(nonzero[0])
-    nonzerox = np.array(nonzero[1])
-    # Current positions to be updated for each window
-    leftx_current = leftx_base
-    rightx_current = rightx_base
-    # Set the width of the windows +/- margin
-    margin = 80
-    # Set minimum number of pixels found to recenter window
-    minpix = 50
-    # Create empty lists to receive left and right lane pixel indices
-    left_lane_inds = []
-    right_lane_inds = []
-
-    # Step through the windows one by one
-    for window in range(nwindows):
-        # Identify window boundaries in x and y (and right and left)
-        win_y_low = binary_warped.shape[0] - (window+1)*window_height
-        win_y_high = binary_warped.shape[0] - window*window_height
-        win_xleft_low = leftx_current - margin
-        win_xleft_high = leftx_current + margin
-        win_xright_low = rightx_current - margin
-        win_xright_high = rightx_current + margin
-        # Draw the windows on the visualization image
-        cv2.rectangle(out_img,(win_xleft_low,win_y_low),(win_xleft_high,win_y_high),(0,255,0), 2) 
-        cv2.rectangle(out_img,(win_xright_low,win_y_low),(win_xright_high,win_y_high),(0,255,0), 2) 
-        # Identify the nonzero pixels in x and y within the window
-        good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
-        good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
-        # Append these indices to the lists
-        left_lane_inds.append(good_left_inds)
-        right_lane_inds.append(good_right_inds)
-        # If you found > minpix pixels, recenter next window on their mean position
-        if len(good_left_inds) > minpix:
-            leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
-        if len(good_right_inds) > minpix:        
-            rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
-
-    # Concatenate the arrays of indices
-    left_lane_inds = np.concatenate(left_lane_inds)
-    right_lane_inds = np.concatenate(right_lane_inds)
-
-    # Extract left and right line pixel positions
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds] 
-    rightx = nonzerox[right_lane_inds]
-    righty = nonzeroy[right_lane_inds]
-    # Fit a second order polynomial to each
-    if len(leftx) != 0: 
-        left_fit = np.polyfit(lefty, leftx, 2)
-    if len(rightx) != 0:
-        right_fit = np.polyfit(righty, rightx, 2)
-    #left_fit = np.polyfit(lefty, leftx, 2)
-    #right_fit = np.polyfit(righty, rightx, 2)
-    # Generate x and y values for plotting
-    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
-    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-    
-    out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
-
-    return out_img, left_fitx, right_fitx, ploty, left_fit, right_fit
-```
-
-
-```python
-out_img, left_fitx, right_fitx, ploty, left_fit, right_fit = lane_finder(test_img, combined, Minv)
-
-plt.imshow(out_img)
-plt.plot(left_fitx, ploty, color='yellow')
-plt.plot(right_fitx, ploty, color='yellow')
-
-
-```
-
-
-
-
-    [<matplotlib.lines.Line2D at 0x125bd1588>]
+For actual lane detection, the lane_finder()function uses a "sliding window" technique to 
 
 
 
