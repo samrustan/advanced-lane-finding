@@ -23,20 +23,10 @@ The goals / steps of this project are the following:
 
 #### 1. Camera Calibration (Using Chessboard reference images)
 
-
-
-
-```python
-
-```
-
-
-
-
-    <matplotlib.text.Text at 0x120e6f438>
-
-
-
+The code used to calibrate the camera is contained in the second and third code cell of the IPython notebook.
+Camera calibration is performed by implementing the "findChessboardCorners" method from the opencv library.
+The 3D coordinates of the chessboard corners are stored in object point arrays. Note that "objp" is just a replicated array of coordinates, and "objpoints" is appended with a copy of it every time a chessboard corner is successfully detected in a test image. The "imgpoints" are appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.
+The object points (objpoints) and image points (imgpoints) are then used to compute the camera calibration, including the distortion coefficients (mtx, dist), by implementing the cv2.calibrateCamera from opencv.
 
 ![png](output_3_1.png)
 
