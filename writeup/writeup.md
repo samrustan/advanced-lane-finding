@@ -33,44 +33,12 @@ The object points (objpoints) and image points (imgpoints) are then used to comp
 
 #### 2. Distortion Correction
 
+The code for distortion correction demonstration is in code cells 4 and 5.
+The distortion parameters were applied to a sample image from the test_images set.
+The opencv method "cv2.undistort()" was implemented in an "undistort()" function.  
+The undisort function reads in an image, loads a previously pickled calibration file, then using the distortion parameters (mtx and dist) implements the cv2.undisort method to return the undistorted image.
 
-```python
-def undistort(img):
-    """Read in image.
-       Requires pickled calibration file
-       Return undistored image
-    """
-    calibration = pickle.load( open("calibration.p", "rb") )
-    mtx = calibration['mtx']
-    dist = calibration['dist']
-    undist_img = cv2.undistort(img,mtx,dist,None,mtx)
-    return undist_img
-```
-
-
-```python
-test_img = cv2.imread('./test_images/test5.jpg')
-test_img = cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB)
-test_img_undistort = undistort(test_img)
-
-# Visualize undistortion
-
-plt.figure(figsize=(10,40))
-plt.subplot(121)
-plt.imshow(test_img)
-plt.title('Original Image')
-
-plt.subplot(122)
-plt.imshow(test_img_undistort)
-plt.title('Undistorted Image')
-```
-
-
-
-
-    <matplotlib.text.Text at 0x123d9ca20>
-
-
+It can be somewhat difficult to discern between the original "distorted" image and the "undistorted" image.  However, for the images shown, notice the car hood (on bottom of image) and the white car for appreciable effects.
 
 
 ![png](output_6_1.png)
@@ -80,157 +48,12 @@ Note the car hood and the white car for appreciable effects.
 
 #### 3. Image Thresholding with Binary Output
 
+Image Thresholding functions are defined in sixth code cell and demonstrations of the thresholding is done in the seventh code cell.  The thresholding functions, abs_sobel_thresh(), dir_thresh(), and mag_thresh() were all supplied in the lesson material.  The color channel functions, hsv_thresh() and hls_thresh() were modified with a "channel selection" option provided as input to the function.
 
-```python
-def dir_thresh(img, sobel_kernel=15, thresh=(0.7, 1.2)):
-    # Grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    # Calculate the x and y gradients
-    sobelx = cv2.Sobel(gray[:,:,2], cv2.CV_64F, 1, 0, ksize=sobel_kernel)
-    sobely = cv2.Sobel(gray[:,:,2], cv2.CV_64F, 0, 1, ksize=sobel_kernel)
-    # Take the absolute value of the gradient direction, 
-    # apply a threshold, and create a binary image result
-    absgraddir = np.arctan2(np.absolute(sobely), np.absolute(sobelx))
-    binary_output =  np.zeros_like(absgraddir)
-    binary_output[(absgraddir >= thresh[0]) & (absgraddir <= thresh[1])] = 1
+These thresholding functions were used during experimentation of image thresholding and the effect on processing the video output.  After some discussion with another Udacity student, I decided to implement a much more straight forward "color select" with binary output to highlight lane lines from the image/video.  This is demonstrated in the 11th code cell in the perspective transform section.
 
-    # Return the binary image
-    return binary_output
+In code cell 8, a color thresholded binary output is displayed
 
-def mag_thresh(img, sobel_kernel=9, mag_thresh=(30, 255)):
-    # Convert to grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    # Take both Sobel x and y gradients
-    sobelx = cv2.Sobel(gray[:,:,2], cv2.CV_64F, 1, 0, ksize=sobel_kernel)
-    sobely = cv2.Sobel(gray[:,:,2], cv2.CV_64F, 0, 1, ksize=sobel_kernel)
-    # Calculate the gradient magnitude
-    gradmag = np.sqrt(sobelx**2 + sobely**2)
-    # Rescale to 8 bit
-    scale_factor = np.max(gradmag)/255 
-    gradmag = (gradmag/scale_factor).astype(np.uint8) 
-    # Create a binary image of ones where threshold is met, zeros otherwise
-    binary_output = np.zeros_like(gradmag)
-    binary_output[(gradmag >= mag_thresh[0]) & (gradmag <= mag_thresh[1])] = 1
-
-    # Return the binary image
-    return binary_output
-
-def abs_sobel_thresh(img, orient='x', thresh_min=25, thresh_max=255):
-    # Apply the following steps to img
-    # 1) Convert to grayscale === or LAB L channel
-    gray = (cv2.cvtColor(img, cv2.COLOR_RGB2Lab))[:,:,0]
-    # 2) Take the derivative in x or y given orient = 'x' or 'y'
-    sobel = cv2.Sobel(gray, cv2.CV_64F, orient=='x', orient=='y')
-    # 3) Take the absolute value of the derivative or gradient
-    abs_sobel = np.absolute(sobel)
-    # 4) Scale to 8-bit (0 - 255) then convert to type = np.uint8
-    scaled_sobel = np.uint8(255*abs_sobel/np.max(abs_sobel))
-    # 5) Create a mask of 1's where the scaled gradient magnitude 
-            # is > thresh_min and < thresh_max
-    sxbinary = np.zeros_like(scaled_sobel)
-    sxbinary[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1
-    # 6) Return this mask as your binary_output image
-    binary_output = sxbinary 
-    return binary_output
-
-def hsv_thresh(img, ch, thresh=(127, 255)):
-    # 1) Convert to HLS color space
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    
-    # 2h) Apply a threshold to the H channel
-    if ch == 'h' : 
-        binary_output = np.zeros_like(hls[:,:,0])
-        binary_output[(hls[:,:,0] > thresh[0]) & (hls[:,:,0] <= thresh[1])] = 1
-    # 2) Apply a threshold to the S channel
-    if ch == 's' :
-        binary_output = np.zeros_like(hls[:,:,1])
-        binary_output[(hls[:,:,1] > thresh[0]) & (hls[:,:,1] <= thresh[1])] = 1
-    # 2s) Apply a threshold to the V channel
-    if ch == 'v' : 
-        binary_output = np.zeros_like(hls[:,:,2])
-        binary_output[(hls[:,:,2] > thresh[0]) & (hls[:,:,2] <= thresh[1])] = 1
-    # 3) Return a binary image of threshold result
-    return binary_output
-
-def hls_thresh(img, thresh=(127, 255)):
-    # 1) Convert to HLS color space
-    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    # 2) Apply a threshold to the S channel
-    if ch == 'h' : 
-        binary_output = np.zeros_like(hls[:,:,2])
-        binary_output[(hls[:,:,0] > thresh[0]) & (hls[:,:,0] <= thresh[1])] = 1
-    if ch == 'l' : 
-        binary_output = np.zeros_like(hls[:,:,2])
-        binary_output[(hls[:,:,1] > thresh[0]) & (hls[:,:,1] <= thresh[1])] = 1
-    if ch == 's'
-        binary_output = np.zeros_like(hls[:,:,2])
-        binary_output[(hls[:,:,2] > thresh[0]) & (hls[:,:,2] <= thresh[1])] = 1
-    # 3) Return a binary image of threshold result
-    return binary_output
-
-```
-
-
-      File "<ipython-input-6-4f9eb231414b>", line 81
-        if ch == 's'
-                    ^
-    SyntaxError: invalid syntax
-
-
-
-
-```python
-# Set the color channels
-# RGB Channels
-test_img_R = test_img_undistort[:,:,0]
-test_img_G = test_img_undistort[:,:,1]
-test_img_B = test_img_undistort[:,:,2]
-
-# HSV Channels
-test_img_HSV = cv2.cvtColor(test_img_undistort, cv2.COLOR_RGB2HSV)
-test_img_H1 = test_img_HSV[:,:,0]
-test_img_S = test_img_HSV[:,:,1]
-test_img_V = test_img_HSV[:,:,2]
-
-# HLS Channels
-test_img_HLS = cv2.cvtColor(test_img_undistort, cv2.COLOR_RGB2HLS)
-test_img_H2 = test_img_HLS[:,:,0]
-test_img_L = test_img_HLS[:,:,1]
-#test_img_S = hls_s_thresh(test_img_undistort[:,:,2])
-test_img_S = test_img_HLS[:,:,2]
-
-# RGB Channels
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 9))
-f.tight_layout()
-ax1.imshow(test_img_R, cmap='gray')
-ax1.set_title('RGB R-Channel', fontsize=40)
-ax2.imshow(test_img_G, cmap='gray')
-ax2.set_title('RGB G-Channel', fontsize=40)
-ax3.imshow(test_img_B, cmap='gray')
-ax3.set_title('RGB B-Channel', fontsize=40)
-
-# HSV Channels
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 9))
-f.tight_layout()
-ax1.imshow(test_img_H1, cmap='gray')
-ax1.set_title('HSV H-Channel', fontsize=40)
-ax2.imshow(test_img_S, cmap='gray')
-ax2.set_title('HSV S-Channel', fontsize=40)
-ax3.imshow(test_img_V, cmap='gray')
-ax3.set_title('HSV V-Channel', fontsize=40)
-
-# HSV Channels
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 9))
-f.tight_layout()
-ax1.imshow(test_img_H2, cmap='gray')
-ax1.set_title('HLS H-Channel', fontsize=40)
-ax2.imshow(test_img_S, cmap='gray')
-ax2.set_title('HLS L-Channel', fontsize=40)
-ax3.imshow(test_img_L, cmap='gray')
-ax3.set_title('HLS S-Channel', fontsize=40)
-
-plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-```
 
 
 ![png](output_10_0.png)
