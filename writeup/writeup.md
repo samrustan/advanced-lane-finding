@@ -145,7 +145,7 @@ The final implementation on the video is the process_image pipeline.
 
 From the video frame, the image is undistorted, then color selected, then perspective transofrm is applied.  The result of the perspective transform is then input to the lane_finder, which returns the processed image result to be added to the output video.
 
-The link to the video output is here: https://youtu.be/QZbU0Wo93fA 
+The link to the video output is here: https://youtu.be/HYmVUdAiXQI
 
 The an example of the output from this pipeline is shown here.
 
