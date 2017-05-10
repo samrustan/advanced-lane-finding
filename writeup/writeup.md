@@ -3,6 +3,11 @@
 
 ## Project #4: Advanced Lane Finding
 
+RESUBMISSION based on review 484723
+
+* Fixed erratic lane painting on/near bridge
+* Fixed distance from center calc
+
 #### Samuel Rustan
 February Cohort
 
